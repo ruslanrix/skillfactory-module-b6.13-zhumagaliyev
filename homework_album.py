@@ -20,10 +20,17 @@ class Album(Base):
     genre = sa.Column(sa.TEXT)
     album = sa.Column(sa.TEXT)
 
-
-class EmptyData(Exception):
+class Error(Exception):
     pass
 
+class IncorrectData(Error):
+    pass
+
+class EmptyData(Error):
+    pass
+
+class AlreadyExists(Error):
+    pass
 
 def connect_db():
     """
@@ -48,25 +55,18 @@ def save_album(new_data):
     """
     Проверяет и сохраняет новый альбом
     """
-    try:
-        session = connect_db()
-        new_data["year"] = int(new_data["year"])
-        if (not new_data["artist"] or not new_data["genre"] or not new_data["album"]):
-            raise EmptyData("Ввод пустых данных")
-    except (ValueError, TypeError):
-        result = HTTPError(400, "Формат данных для значения year некорректен.")
-    except EmptyData as err:
-        result = HTTPError(400, "Ввод пустых данных")
-
-    else:
-        check = session.query(Album).filter(
+    session = connect_db()
+    if not isinstance(new_data["artist"], str) or not isinstance(new_data["genre"], str) or not isinstance(new_data["album"], str):
+        raise IncorrectData("Ввод некорректных данных")
+    if not new_data["artist"] or not new_data["genre"] or not new_data["album"]:
+        raise EmptyData("Ввод пустых данных")
+    check_album = session.query(Album).filter(
             Album.artist == new_data["artist"]).filter(Album.album == new_data["album"]).first()
-        # print(check.album, new_data["album"])
-        if not check:
-            session.add(Album(year=new_data["year"], artist=new_data["artist"], genre=new_data["genre"],
+    if not check_album:
+        session.add(Album(year=new_data["year"], artist=new_data["artist"], genre=new_data["genre"],
                               album=new_data["album"]))
-            session.commit()
-            result = "Данные сохранены"
-        else:
-            result = HTTPError(409, "Альбом уже существует в базе")
+        session.commit()
+        result = "Данные сохранены"
+    else:
+        raise AlreadyExists("Альбом уже существует в базе")
     return result

@@ -28,7 +28,18 @@ def new_album():
         "album": request.forms.get("album"),
         "year": request.forms.get("year")
     }
-    result = homework_album.save_album(new_data)
+    try:
+        new_data["year"] = int(new_data["year"])
+    except (ValueError, TypeError):
+        return HTTPError(400, "Формат данных для значения year некорректен.")
+    try:
+        result = homework_album.save_album(new_data)
+    except homework_album.IncorrectData as err:
+        result = HTTPError(400, str(err))
+    except homework_album.EmptyData as err:
+        result = HTTPError(400, str(err))
+    except homework_album.AlreadyExists as err:
+        result = HTTPError(409, str(err))
     return result
 
 if __name__ == "__main__":
